@@ -9,6 +9,7 @@ Interactive profile switcher for Claude Code (Claude CLI).
 brew tap anonnaabir00/claude-shift https://github.com/anonnaabir00/claude-shift
 brew install claude-shift
 ```
+If you skip the `brew tap` step, `brew install claude-shift` will not find the formula.
 
 ### Curl installer
 ```bash
