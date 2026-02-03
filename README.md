@@ -4,14 +4,9 @@ Interactive profile switcher for Claude Code (Claude CLI).
 
 ## Install
 
-### Homebrew (personal tap)
+### Homebrew (no extra tap repo)
 ```bash
-brew tap-new anonnaabir00/claude-shift
-git -C "$(brew --repo anonnaabir00/claude-shift)" remote add origin https://github.com/anonnaabir00/homebrew-claude-shift
-git -C "$(brew --repo anonnaabir00/claude-shift)" push -u origin main
-
-brew tap anonnaabir00/claude-shift
-brew install claude-shift
+brew install anonnaabir00/claude-shift/claude-shift
 ```
 
 ### Curl installer
@@ -35,7 +30,7 @@ Claude settings written to:
 ```
 
 ## Homebrew formula (reference)
-This repo includes a Homebrew formula at `Formula/claude-shift.rb`. Update the `url` and `sha256` when you tag a release, then use a personal tap so `brew install claude-shift` works.
+This repo includes a Homebrew formula at `Formula/claude-shift.rb` that installs directly from the raw script URL using `sha256 :no_check`. This avoids creating a separate `homebrew-claude-shift` tap repo.
 
 ## Claude CLI detection
 On launch, `claude-shift` checks for the `claude` CLI in your `PATH` once per run and prints guidance if it is missing.
