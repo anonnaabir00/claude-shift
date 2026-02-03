@@ -31,24 +31,4 @@ Claude settings written to:
 ```
 
 ## Homebrew formula (reference)
-Add a formula in your tap at `Formula/claude-shift.rb`:
-
-```ruby
-class ClaudeShift < Formula
-  desc "Interactive profile switcher for Claude Code (Claude CLI)"
-  homepage "https://github.com/anonnaabir00/claude-shift"
-  url "https://github.com/anonnaabir00/claude-shift/archive/refs/tags/v0.1.0.tar.gz"
-  sha256 "REPLACE_WITH_TARBALL_SHA256"
-  license "MIT"
-
-  def install
-    bin.install "claude-shift"
-  end
-
-  test do
-    system "#{bin}/claude-shift", "-h"
-  end
-end
-```
-
-Update the `url`/`sha256` when you tag a release. For personal use, a tap with this formula enables `brew install claude-shift`.
+This repo includes a Homebrew formula at `Formula/claude-shift.rb`. Update the `url` and `sha256` when you tag a release, then use a personal tap so `brew install claude-shift` works.
