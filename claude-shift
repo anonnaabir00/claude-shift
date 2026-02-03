@@ -13,6 +13,46 @@ chmod 700 "$BASE_DIR" "$PROFILES_DIR" 2>/dev/null || true
 
 is_macos() { [[ "$(uname -s)" == "Darwin" ]]; }
 
+usage() {
+  cat <<'USAGE'
+claude-shift: interactive profile switcher for Claude Code.
+
+Usage:
+  claude-shift
+
+Options:
+  -h, --help  Show this help message.
+USAGE
+}
+
+detect_claude_cli() {
+  local claude_path=""
+  local already_checked="${CLAUDE_SHIFT_CLI_CHECKED:-}"
+  if [[ -n "$already_checked" ]]; then
+    return
+  fi
+  export CLAUDE_SHIFT_CLI_CHECKED="1"
+
+  if command -v claude >/dev/null 2>&1; then
+    claude_path="$(command -v claude)"
+    echo "✅ Claude CLI detected at: $claude_path"
+    return
+  fi
+
+  if [[ -d "$CLAUDE_DIR" ]]; then
+    echo "⚠️  Claude CLI not found in PATH, but $CLAUDE_DIR exists."
+    echo "    If Claude CLI is installed, add it to your PATH and re-run for auto-detect."
+    return
+  fi
+
+  echo "⚠️  Claude CLI not detected. Install it from https://claude.ai/code"
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
 pick_editor() {
   [[ -n "${EDITOR:-}" ]] && { echo "$EDITOR"; return; }
   is_macos && { echo "open -e"; return; }
@@ -94,6 +134,7 @@ switch_account() {
 while true; do
   echo
   echo "=== claude-shift ==="
+  detect_claude_cli
   echo "1) Add account"
   echo "2) Switch account"
   echo "3) List accounts"
