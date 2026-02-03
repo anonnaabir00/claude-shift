@@ -1,0 +1,145 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_NAME="claude-shift"
+BASE_DIR="$HOME/.config/claude-switcher"
+PROFILES_DIR="$BASE_DIR/profiles"
+CURRENT_FILE="$BASE_DIR/current"
+CLAUDE_DIR="$HOME/.claude"
+CLAUDE_SETTINGS_LOCAL="$CLAUDE_DIR/settings.local.json"
+
+mkdir -p "$PROFILES_DIR" "$CLAUDE_DIR"
+chmod 700 "$BASE_DIR" "$PROFILES_DIR" 2>/dev/null || true
+
+is_macos() { [[ "$(uname -s)" == "Darwin" ]]; }
+
+usage() {
+  cat <<'USAGE'
+claude-shift: interactive profile switcher for Claude Code.
+
+Usage:
+  claude-shift
+
+Options:
+  -h, --help  Show this help message.
+USAGE
+}
+
+detect_claude_cli() {
+  local claude_path=""
+  if command -v claude >/dev/null 2>&1; then
+    claude_path="$(command -v claude)"
+    echo "✅ Claude CLI detected at: $claude_path"
+    return
+  fi
+
+  if [[ -d "$CLAUDE_DIR" ]]; then
+    echo "⚠️  Claude CLI not found in PATH, but $CLAUDE_DIR exists."
+    echo "    If Claude CLI is installed, add it to your PATH and re-run for auto-detect."
+    return
+  fi
+
+  echo "⚠️  Claude CLI not detected. Install it from https://claude.ai/code"
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+pick_editor() {
+  [[ -n "${EDITOR:-}" ]] && { echo "$EDITOR"; return; }
+  is_macos && { echo "open -e"; return; }
+  command -v nano >/dev/null && { echo "nano"; return; }
+  command -v vi >/dev/null && { echo "vi"; return; }
+  echo "cat"
+}
+
+open_in_editor() {
+  local ed
+  ed="$(pick_editor)"
+  [[ "$ed" == "open -e" ]] && open -e "$1" || $ed "$1"
+}
+
+list_profiles() {
+  ls "$PROFILES_DIR" 2>/dev/null | sed 's/\.env$//' | sort || true
+}
+
+write_settings_local() {
+  local env="$PROFILES_DIR/$1.env"
+  [[ ! -f "$env" ]] && { echo "Profile not found"; return 1; }
+  set -a; source "$env"; set +a
+
+  local model=""
+  [[ -n "${CLAUDE_MODEL_OVERRIDE:-}" ]] && model=",\n  \"model\": \"$CLAUDE_MODEL_OVERRIDE\""
+
+  cat > "$CLAUDE_SETTINGS_LOCAL" <<JSON
+{
+  "\$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "env": {
+    "ANTHROPIC_API_KEY": "${ANTHROPIC_API_KEY:-}",
+    "ANTHROPIC_BASE_URL": "${ANTHROPIC_BASE_URL:-}",
+    "ANTHROPIC_AUTH_TOKEN": "${ANTHROPIC_AUTH_TOKEN:-}",
+    "ZAI_API_KEY": "${ZAI_API_KEY:-}"
+  }$model
+}
+JSON
+
+  chmod 600 "$CLAUDE_SETTINGS_LOCAL"
+  echo "$1" > "$CURRENT_FILE"
+  echo "✅ Switched to profile: $1"
+}
+
+choose() {
+  local i=1
+  for x in "$@"; do echo "  $i) $x"; ((i++)); done
+  read -rp "Choose: " n
+  echo "${!n}"
+}
+
+add_account() {
+  read -rp "Profile name: " name
+  name="${name// /-}"
+  local f="$PROFILES_DIR/$name.env"
+
+  [[ -f "$f" ]] && open_in_editor "$f" && return
+
+  cat > "$f" <<'ENV'
+# ANTHROPIC_API_KEY=
+# ANTHROPIC_BASE_URL=
+# ANTHROPIC_AUTH_TOKEN=
+# ZAI_API_KEY=
+# CLAUDE_MODEL_OVERRIDE=
+ENV
+  chmod 600 "$f"
+  open_in_editor "$f"
+  read -rp "Switch to this profile now? (y/n): " yn
+  [[ "$yn" =~ ^[Yy]$ ]] && write_settings_local "$name"
+}
+
+switch_account() {
+  mapfile -t p < <(list_profiles)
+  [[ ${#p[@]} -eq 0 ]] && { echo "No profiles"; return; }
+  local c
+  c="$(choose "${p[@]}")"
+  write_settings_local "$c"
+}
+
+while true; do
+  echo
+  echo "=== claude-shift ==="
+  detect_claude_cli
+  echo "1) Add account"
+  echo "2) Switch account"
+  echo "3) List accounts"
+  echo "4) Show current"
+  echo "q) Quit"
+  read -rp "> " c
+  case "$c" in
+    1) add_account ;;
+    2) switch_account ;;
+    3) list_profiles ;;
+    4) [[ -f "$CURRENT_FILE" ]] && cat "$CURRENT_FILE" || echo "None" ;;
+    q) exit ;;
+  esac
+done
