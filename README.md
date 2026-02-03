@@ -32,3 +32,6 @@ Claude settings written to:
 
 ## Homebrew formula (reference)
 This repo includes a Homebrew formula at `Formula/claude-shift.rb`. Update the `url` and `sha256` when you tag a release, then use a personal tap so `brew install claude-shift` works.
+
+## Claude CLI detection
+On launch, `claude-shift` checks for the `claude` CLI in your `PATH` once per run and prints guidance if it is missing.

@@ -27,6 +27,12 @@ USAGE
 
 detect_claude_cli() {
   local claude_path=""
+  local already_checked="${CLAUDE_SHIFT_CLI_CHECKED:-}"
+  if [[ -n "$already_checked" ]]; then
+    return
+  fi
+  export CLAUDE_SHIFT_CLI_CHECKED="1"
+
   if command -v claude >/dev/null 2>&1; then
     claude_path="$(command -v claude)"
     echo "✅ Claude CLI detected at: $claude_path"
