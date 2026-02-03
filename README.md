@@ -6,6 +6,10 @@ Interactive profile switcher for Claude Code (Claude CLI).
 
 ### Homebrew (personal tap)
 ```bash
+brew tap-new anonnaabir00/claude-shift
+git -C "$(brew --repo anonnaabir00/claude-shift)" remote add origin https://github.com/anonnaabir00/homebrew-claude-shift
+git -C "$(brew --repo anonnaabir00/claude-shift)" push -u origin main
+
 brew tap anonnaabir00/claude-shift
 brew install claude-shift
 ```
