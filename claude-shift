@@ -216,6 +216,22 @@ cmd_add() {
 
   local env_file="$PROFILES_DIR/$profile_name.env"
 
+  # Anthropic (direct) = OAuth login, only one account allowed
+  if [[ "$pname" == "Anthropic (direct)" ]]; then
+    local existing_anthropic
+    existing_anthropic=$(grep -rl "^# Uses Claude's built-in OAuth" "$PROFILES_DIR" 2>/dev/null | head -1)
+    if [[ -n "$existing_anthropic" ]]; then
+      local existing_name
+      existing_name=$(basename "$existing_anthropic" .env)
+      if [[ "$existing_name" != "$profile_name" ]]; then
+        err "Anthropic (direct) profile already exists: $existing_name"
+        err "Only one OAuth profile allowed (Pro subscription = single session)."
+        warn "Use 'claude-shift edit $existing_name' to modify it."
+        return 1
+      fi
+    fi
+  fi
+
   # Anthropic (direct) = OAuth login, no manual key needed
   if [[ "$pname" == "Anthropic (direct)" ]]; then
     # Model override only
