@@ -192,11 +192,33 @@ cmd_add() {
 
   local env_file="$PROFILES_DIR/$profile_name.env"
 
-  # API Key / Auth Token (hidden input)
-  local key_label="API Key"
-  if [[ "$pname" == "Anthropic (direct)" || "$pname" == "Z.AI" ]]; then
-    key_label="Auth Token"
+  # Anthropic (direct) = OAuth login, no manual key needed
+  if [[ "$pname" == "Anthropic (direct)" ]]; then
+    # Model override only
+    local model
+    model=$(prompt_value "Model override" "$example_model")
+
+    # Write clean .env — no API key, uses Claude's built-in OAuth
+    cat > "$env_file" <<EOF
+# Uses Claude's built-in OAuth login (browser-based)
+ANTHROPIC_BASE_URL=https://api.anthropic.com
+CLAUDE_MODEL_OVERRIDE=${model}
+EOF
+    chmod 600 "$env_file"
+    info "Profile '$profile_name' saved."
+    echo
+    info "This profile uses Claude's built-in OAuth login."
+    info "Run 'claude' after switching — it will open browser to authenticate."
+
+    echo
+    read -rp "  Switch to this profile now? (Y/n): " yn </dev/tty
+    [[ ! "$yn" =~ ^[Nn]$ ]] && write_settings "$profile_name"
+    return
   fi
+
+  # All other providers need API key / auth token
+  local key_label="API Key"
+  [[ "$pname" == "Z.AI" ]] && key_label="Auth Token"
   local api_key
   api_key=$(prompt_value "$key_label" "" "true")
   [[ -z "$api_key" ]] && { err "${key_label} required."; return 1; }
@@ -209,19 +231,19 @@ cmd_add() {
   local model
   model=$(prompt_value "Model override" "$example_model")
 
-  # Auth token (optional, for custom / Z.AI)
+  # Auth token (optional, for custom)
   local auth_token=""
   if [[ "$pname" == "Custom (Anthropic-compatible)" ]]; then
     auth_token=$(prompt_value "Auth token (optional)" "" "true")
   fi
 
-  # Write .env file — Z.AI uses ANTHROPIC_AUTH_TOKEN instead of API_KEY
+  # Write .env file
   cat > "$env_file" <<EOF
 ANTHROPIC_BASE_URL=${base_url}
 CLAUDE_MODEL_OVERRIDE=${model}
 EOF
 
-  if [[ "$pname" == "Anthropic (direct)" || "$pname" == "Z.AI" ]]; then
+  if [[ "$pname" == "Z.AI" ]]; then
     echo "ANTHROPIC_AUTH_TOKEN=${api_key}" >> "$env_file"
   else
     echo "ANTHROPIC_API_KEY=${api_key}" >> "$env_file"
