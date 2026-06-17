@@ -7,7 +7,12 @@
       "Bash(brew list:*)",
       "Bash(brew info:*)",
       "Bash(brew tap:*)",
-      "Bash(shasum -a 256)"
+      "Bash(shasum -a 256)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git tag:*)",
+      "Bash(git push:*)",
+      "Bash(chmod:*)"
     ]
   }
 }
