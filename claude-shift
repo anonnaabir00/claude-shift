@@ -13,8 +13,12 @@ mkdir -p "$PROFILES_DIR" "$CLAUDE_DIR"
 chmod 700 "$BASE_DIR" "$PROFILES_DIR" 2>/dev/null || true
 
 # ── Colors ──────────────────────────────────────────────────────
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'
-CYAN='\033[0;36m'; BOLD='\033[1m'; DIM='\033[2m'; RESET='\033[0m'
+if [[ -t 1 ]]; then
+  RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[0;33m'
+  CYAN='\033[0;36m'; BOLD='\033[1m'; DIM='\033[2m'; RESET='\033[0m'
+else
+  RED=''; GREEN=''; YELLOW=''; CYAN=''; BOLD=''; DIM=''; RESET=''
+fi
 
 info()  { echo -e "${GREEN}${1}${RESET}"; }
 warn()  { echo -e "${YELLOW}${1}${RESET}"; }
@@ -22,14 +26,13 @@ err()   { echo -e "${RED}${1}${RESET}" >&2; }
 label() { echo -e "${CYAN}${BOLD}${1}${RESET}"; }
 
 # ── Providers ───────────────────────────────────────────────────
-# Each provider: display_name|env_key_name|default_base_url|example_model
+# display_name|default_base_url|example_model
 PROVIDERS=(
-  "Anthropic (direct)|ANTHROPIC_API_KEY|https://api.anthropic.com|claude-sonnet-4-20250514"
-  "OpenRouter|ANTHROPIC_API_KEY|https://openrouter.ai/api/v1|anthropic/claude-sonnet-4"
-  "OpenAI-compatible|ANTHROPIC_API_KEY||gpt-4o"
-  "Amazon Bedrock|ANTHROPIC_API_KEY|https://bedrock-runtime.us-east-1.amazonaws.com|anthropic.claude-sonnet-4-20250514-v1:0"
-  "Google Vertex AI|ANTHROPIC_API_KEY||claude-sonnet-4@20250514"
-  "Custom|ANTHROPIC_API_KEY||"
+  "Anthropic (direct)|https://api.anthropic.com|claude-sonnet-4-20250514"
+  "OpenRouter|https://openrouter.ai/api/v1|anthropic/claude-sonnet-4"
+  "Amazon Bedrock|https://bedrock-runtime.us-east-1.amazonaws.com|anthropic.claude-sonnet-4-20250514-v1:0"
+  "Google Vertex AI||claude-sonnet-4@20250514"
+  "Custom (Anthropic-compatible)||"
 )
 
 # ── Helpers ─────────────────────────────────────────────────────
@@ -47,60 +50,49 @@ profile_exists() {
 
 # Read a value with optional default, hidden input for secrets
 prompt_value() {
-  local label="$1" default="${2:-}" secret="${3:-false}"
-  local prompt_text="  ${label}"
-  [[ -n "$default" ]] && prompt_text+=" ${DIM}[${default}]${RESET}"
+  local lbl="$1" default="${2:-}" secret="${3:-false}"
+  local prompt_text="  ${lbl}"
+  [[ -n "$default" ]] && prompt_text+=" [${default}]"
   prompt_text+=": "
 
   if [[ "$secret" == "true" ]]; then
-    echo -en "$prompt_text"
-    read -rs val
-    echo
+    echo -n "$prompt_text" >/dev/tty
+    read -rs val </dev/tty
+    echo >/dev/tty
   else
-    read -rp "$(echo -e "$prompt_text")" val
+    read -rp "$prompt_text" val </dev/tty
   fi
   echo "${val:-$default}"
 }
 
-# Arrow-key menu selector
+# Number-based menu selector (works in all terminals)
 select_menu() {
   local title="$1"; shift
   local options=("$@")
-  local selected=0
   local count=${#options[@]}
 
-  # Hide cursor
-  tput civis 2>/dev/null || true
-  trap 'tput cnorm 2>/dev/null || true' RETURN
-
-  while true; do
-    # Clear and redraw
-    echo -en "\033[${count}A" 2>/dev/null || true
-    for i in "${!options[@]}"; do
-      if [[ $i -eq $selected ]]; then
-        echo -e "  ${GREEN}> ${options[$i]}${RESET}  "
-      else
-        echo -e "    ${options[$i]}  "
-      fi
-    done
-
-    # Read single keypress
-    IFS= read -rsn1 key
-    case "$key" in
-      $'\x1b')
-        read -rsn2 rest
-        case "$rest" in
-          '[A') ((selected > 0)) && ((selected--)) ;;
-          '[B') ((selected < count - 1)) && ((selected++)) ;;
-        esac
-        ;;
-      '') break ;; # Enter
-      q) selected=-1; break ;;
-    esac
+  echo "" >/dev/tty
+  echo -e "  ${BOLD}${title}:${RESET}" >/dev/tty
+  for i in "${!options[@]}"; do
+    local num=$((i + 1))
+    echo -e "  ${GREEN}${num})${RESET} ${options[$i]}" >/dev/tty
   done
+  echo "" >/dev/tty
 
-  tput cnorm 2>/dev/null || true
-  echo "$selected"
+  local choice
+  while true; do
+    echo -n "  Choose [1-${count}]: " >/dev/tty
+    read -r choice </dev/tty
+    if [[ "$choice" == "q" ]]; then
+      echo "-1"
+      return
+    fi
+    if [[ "$choice" =~ ^[0-9]+$ ]] && (( choice >= 1 && choice <= count )); then
+      echo $((choice - 1))
+      return
+    fi
+    echo "  Invalid choice." >/dev/tty
+  done
 }
 
 # ── Write settings.local.json ──────────────────────────────────
@@ -109,13 +101,16 @@ write_settings() {
   local env_file="$PROFILES_DIR/$profile.env"
   [[ ! -f "$env_file" ]] && { err "Profile '$profile' not found."; return 1; }
 
+  # Clear vars before sourcing
+  unset ANTHROPIC_API_KEY ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN ZAI_API_KEY CLAUDE_MODEL_OVERRIDE 2>/dev/null || true
+
   # Source profile vars
   set -a; source "$env_file"; set +a
 
   # Build env block
   local env_json="{"
   local first=true
-  for var in ANTHROPIC_API_KEY ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN ZAI_API_KEY OPENAI_API_KEY; do
+  for var in ANTHROPIC_API_KEY ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN ZAI_API_KEY; do
     local val="${!var:-}"
     if [[ -n "$val" ]]; then
       [[ "$first" == "true" ]] && first=false || env_json+=","
@@ -152,24 +147,18 @@ EOF
 cmd_add() {
   echo
   label "Add new provider profile"
-  echo
 
   # Pick provider
-  echo -e "  ${BOLD}Select provider:${RESET}"
   local names=()
   for p in "${PROVIDERS[@]}"; do
     names+=("${p%%|*}")
   done
-  # Print options first
-  for i in "${!names[@]}"; do
-    echo -e "    ${names[$i]}"
-  done
   local idx
-  idx=$(select_menu "Provider" "${names[@]}")
+  idx=$(select_menu "Select provider" "${names[@]}")
   [[ "$idx" == "-1" ]] && return
 
   local provider="${PROVIDERS[$idx]}"
-  IFS='|' read -r pname _ default_url example_model <<< "$provider"
+  IFS='|' read -r pname default_url example_model <<< "$provider"
 
   echo
   info "Provider: $pname"
@@ -187,7 +176,7 @@ cmd_add() {
 
   local env_file="$PROFILES_DIR/$profile_name.env"
 
-  # API Key
+  # API Key (hidden input)
   local api_key
   api_key=$(prompt_value "API Key" "" "true")
   [[ -z "$api_key" ]] && { err "API key required."; return 1; }
@@ -200,9 +189,9 @@ cmd_add() {
   local model
   model=$(prompt_value "Model override" "$example_model")
 
-  # Auth token (optional, for some providers)
+  # Auth token (optional, for custom)
   local auth_token=""
-  if [[ "$pname" == "Custom" ]]; then
+  if [[ "$pname" == "Custom (Anthropic-compatible)" ]]; then
     auth_token=$(prompt_value "Auth token (optional)" "" "true")
   fi
 
@@ -219,7 +208,7 @@ EOF
   info "Profile '$profile_name' saved."
 
   echo
-  read -rp "  Switch to this profile now? (Y/n): " yn
+  read -rp "  Switch to this profile now? (Y/n): " yn </dev/tty
   [[ ! "$yn" =~ ^[Nn]$ ]] && write_settings "$profile_name"
 }
 
@@ -247,9 +236,6 @@ cmd_switch() {
   local cur
   cur=$(current_profile)
 
-  echo
-  label "Switch profile"
-  echo
   local display=()
   for p in "${profiles[@]}"; do
     if [[ "$p" == "$cur" ]]; then
@@ -259,9 +245,8 @@ cmd_switch() {
     fi
   done
 
-  for d in "${display[@]}"; do echo "    $d"; done
   local idx
-  idx=$(select_menu "Profile" "${display[@]}")
+  idx=$(select_menu "Switch profile" "${display[@]}")
   [[ "$idx" == "-1" ]] && return
 
   write_settings "${profiles[$idx]}"
@@ -307,13 +292,11 @@ cmd_remove() {
   local target="${1:-}"
   if [[ -z "$target" ]]; then
     local profiles=()
-  while IFS= read -r line; do profiles+=("$line"); done < <(list_profiles)
+    while IFS= read -r line; do profiles+=("$line"); done < <(list_profiles)
     [[ ${#profiles[@]} -eq 0 ]] && { warn "No profiles."; return; }
-    echo
-    label "Remove profile"
-    for p in "${profiles[@]}"; do echo "    $p"; done
+
     local idx
-    idx=$(select_menu "Profile" "${profiles[@]}")
+    idx=$(select_menu "Remove profile" "${profiles[@]}")
     [[ "$idx" == "-1" ]] && return
     target="${profiles[$idx]}"
   fi
@@ -323,7 +306,7 @@ cmd_remove() {
     return 1
   fi
 
-  read -rp "  Remove profile '$target'? (y/N): " yn
+  read -rp "  Remove profile '$target'? (y/N): " yn </dev/tty
   if [[ "$yn" =~ ^[Yy]$ ]]; then
     rm -f "$PROFILES_DIR/$target.env"
     local cur
@@ -338,13 +321,11 @@ cmd_edit() {
   local target="${1:-}"
   if [[ -z "$target" ]]; then
     local profiles=()
-  while IFS= read -r line; do profiles+=("$line"); done < <(list_profiles)
+    while IFS= read -r line; do profiles+=("$line"); done < <(list_profiles)
     [[ ${#profiles[@]} -eq 0 ]] && { warn "No profiles."; return; }
-    echo
-    label "Edit profile"
-    for p in "${profiles[@]}"; do echo "    $p"; done
+
     local idx
-    idx=$(select_menu "Profile" "${profiles[@]}")
+    idx=$(select_menu "Edit profile" "${profiles[@]}")
     [[ "$idx" == "-1" ]] && return
     target="${profiles[$idx]}"
   fi
@@ -362,7 +343,7 @@ cmd_edit() {
   local cur
   cur=$(current_profile)
   if [[ "$cur" == "$target" ]]; then
-    read -rp "  Re-apply this profile? (Y/n): " yn
+    read -rp "  Re-apply this profile? (Y/n): " yn </dev/tty
     [[ ! "$yn" =~ ^[Nn]$ ]] && write_settings "$target"
   fi
 }
@@ -389,7 +370,7 @@ ${BOLD}EXAMPLES:${RESET}
   claude-shift list                 # Show all profiles
 
 ${BOLD}SUPPORTED PROVIDERS:${RESET}
-  Anthropic (direct), OpenRouter, OpenAI-compatible,
+  Anthropic (direct), OpenRouter,
   Amazon Bedrock, Google Vertex AI, Custom
 
 ${BOLD}FILES:${RESET}

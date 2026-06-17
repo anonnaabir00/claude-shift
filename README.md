@@ -49,16 +49,29 @@ claude-shift remove [name]        # Remove a profile
 
 - Anthropic (direct API)
 - OpenRouter
-- OpenAI-compatible endpoints
 - Amazon Bedrock
 - Google Vertex AI
-- Custom (any base URL)
+- Custom (any Anthropic-compatible proxy)
 
 ## How it works
 
 Profiles stored as `.env` files in `~/.config/claude-shift/profiles/`. On switch, writes `~/.claude/settings.local.json` with the selected provider's env vars and model override.
 
 Auto-enables caveman ultra mode when the caveman plugin is detected.
+
+## Releasing a new version
+
+```bash
+# 1. Make changes, commit, push as usual
+git add claude-shift
+git commit -m "Add feature"
+git push
+
+# 2. Run release script (bumps version, tags, updates formula SHA)
+./scripts/release.sh 0.3.0
+```
+
+Users upgrade with `brew upgrade claude-shift`.
 
 ## Shortcuts
 
