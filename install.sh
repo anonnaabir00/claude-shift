@@ -8,8 +8,9 @@ TARGET_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 mkdir -p "$TARGET_DIR"
 curl -fsSL "https://raw.githubusercontent.com/$REPO/main/$BIN" -o "$TARGET_DIR/$BIN"
 chmod +x "$TARGET_DIR/$BIN"
+ln -sf "$TARGET_DIR/$BIN" "$TARGET_DIR/cs"
 
-echo "Installed to $TARGET_DIR/$BIN"
+echo "Installed to $TARGET_DIR/$BIN (also available as 'cs')"
 
 if ! echo ":$PATH:" | grep -q ":$TARGET_DIR:"; then
   echo ""

@@ -7,6 +7,7 @@ class ClaudeShift < Formula
 
   def install
     bin.install "claude-shift"
+    bin.install_symlink "claude-shift" => "cs"
   end
 
   test do

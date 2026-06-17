@@ -82,6 +82,16 @@ git push
 
 Users upgrade with `brew upgrade claude-shift`.
 
+## Short command
+
+`cs` is a symlink to `claude-shift`:
+
+```bash
+cs switch work        # same as claude-shift switch work
+cs run themespell     # same as claude-shift run themespell
+cs list               # same as claude-shift list
+```
+
 ## Shortcuts
 
 | Command | Alias |
