@@ -113,36 +113,43 @@ write_settings() {
   # Source profile vars
   set -a; source "$env_file"; set +a
 
-  # Build env block
-  local env_json="{"
-  local first=true
+  # Build env object for jq
+  local env_json="{}"
   for var in ANTHROPIC_API_KEY ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN ZAI_API_KEY; do
     local val="${!var:-}"
     if [[ -n "$val" ]]; then
-      [[ "$first" == "true" ]] && first=false || env_json+=","
-      env_json+=$'\n'"      \"$var\": \"$val\""
+      env_json=$(echo "$env_json" | jq --arg k "$var" --arg v "$val" '. + {($k): $v}')
     fi
   done
-  env_json+=$'\n'"    }"
 
-  # Build model override
-  local model_line=""
+  # Build the overlay object (env + optional model + optional caveman)
+  local overlay
+  overlay=$(jq -n --argjson env "$env_json" '{"env": $env}')
+
   if [[ -n "${CLAUDE_MODEL_OVERRIDE:-}" ]]; then
-    model_line=","$'\n'"  \"model\": \"$CLAUDE_MODEL_OVERRIDE\""
+    overlay=$(echo "$overlay" | jq --arg m "$CLAUDE_MODEL_OVERRIDE" '. + {"model": $m}')
+  else
+    overlay=$(echo "$overlay" | jq 'del(.model)')
   fi
 
-  # Check for caveman plugin + auto-enable
-  local caveman_line=""
   if [[ -d "$HOME/.claude/plugins/cache/caveman" ]] || command -v caveman >/dev/null 2>&1; then
-    caveman_line=","$'\n'"  \"preferences\": {"$'\n'"    \"caveman\": {"$'\n'"      \"enabled\": true,"$'\n'"      \"level\": \"ultra\","$'\n'"      \"recommended\": true"$'\n'"    }"$'\n'"  }"
+    overlay=$(echo "$overlay" | jq '.preferences.caveman = {"enabled": true, "level": "ultra", "recommended": true}')
   fi
 
-  cat > "$CLAUDE_SETTINGS_LOCAL" <<EOF
-{
-  "\$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "env": ${env_json}${model_line}${caveman_line}
-}
-EOF
+  # Merge with existing settings (preserve permissions, other keys)
+  local existing="{}"
+  if [[ -f "$CLAUDE_SETTINGS_LOCAL" ]]; then
+    existing=$(jq '.' "$CLAUDE_SETTINGS_LOCAL" 2>/dev/null || echo "{}")
+  fi
+
+  # Merge: overlay replaces env/model entirely, rest of existing preserved
+  local merged
+  merged=$(jq -n \
+    --argjson base "$existing" \
+    --argjson patch "$overlay" \
+    '$base * $patch | .env = $patch.env | .["$schema"] = "https://json.schemastore.org/claude-code-settings.json"')
+
+  echo "$merged" | jq '.' > "$CLAUDE_SETTINGS_LOCAL"
 
   chmod 600 "$CLAUDE_SETTINGS_LOCAL"
   echo "$profile" > "$CURRENT_FILE"
