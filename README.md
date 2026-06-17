@@ -6,7 +6,8 @@ Profile switcher for Claude Code. Manage multiple API providers and keys from on
 
 ### Homebrew
 ```bash
-brew install --formula https://raw.githubusercontent.com/anonnaabir00/claude-shift/main/Formula/claude-shift.rb
+brew tap anonnaabir00/claude-shift https://github.com/anonnaabir00/claude-shift
+brew install anonnaabir00/claude-shift/claude-shift
 ```
 
 ### Curl
@@ -19,6 +20,7 @@ curl -fsSL https://raw.githubusercontent.com/anonnaabir00/claude-shift/main/inst
 ### If installed via Homebrew
 ```bash
 brew uninstall claude-shift
+brew untap anonnaabir00/claude-shift
 ```
 
 ### If installed via curl script

@@ -1,9 +1,8 @@
 class ClaudeShift < Formula
   desc "Profile switcher for Claude Code - manage multiple API providers"
   homepage "https://github.com/anonnaabir00/claude-shift"
-  url "https://github.com/anonnaabir00/claude-shift/archive/refs/heads/main.tar.gz"
-  version "0.2.0"
-  sha256 :no_check
+  url "https://github.com/anonnaabir00/claude-shift/archive/refs/tags/v0.2.0.tar.gz"
+  sha256 "PLACEHOLDER"
   license "MIT"
 
   def install
