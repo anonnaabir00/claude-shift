@@ -43,6 +43,9 @@ claude-shift list                 # Show all profiles
 claude-shift current              # Show active profile
 claude-shift edit [name]          # Edit a profile
 claude-shift remove [name]        # Remove a profile
+claude-shift env [name]           # Print export statements for eval
+claude-shift run [name]           # Launch claude with profile env vars
+eval "$(claude-shift env work)"   # Export profile vars to current shell
 ```
 
 ## Supported Providers
@@ -89,3 +92,4 @@ Users upgrade with `brew upgrade claude-shift`.
 | `add` | `a` |
 | `edit` | `e` |
 | `remove` | `rm` |
+| `run` | `r` |

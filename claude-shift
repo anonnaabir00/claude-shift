@@ -408,6 +408,53 @@ cmd_edit() {
   fi
 }
 
+# ── CMD: env ────────────────────────────────────────────────────
+cmd_env() {
+  local target="${1:-$(current_profile)}"
+  [[ -z "$target" ]] && { err "No active profile. Run: claude-shift switch"; return 1; }
+
+  local env_file="$PROFILES_DIR/$target.env"
+  [[ ! -f "$env_file" ]] && { err "Profile '$target' not found."; return 1; }
+
+  # Output export statements for eval
+  while IFS='=' read -r key val; do
+    # Skip comments and empty lines
+    [[ -z "$key" || "$key" =~ ^# ]] && continue
+    # Only export known vars
+    case "$key" in
+      ANTHROPIC_API_KEY|ANTHROPIC_BASE_URL|ANTHROPIC_AUTH_TOKEN|ZAI_API_KEY|CLAUDE_MODEL_OVERRIDE)
+        [[ -n "$val" ]] && echo "export $key=\"$val\""
+        ;;
+    esac
+  done < "$env_file"
+
+  # Unset vars not in this profile (prevent leaking from previous)
+  for var in ANTHROPIC_API_KEY ANTHROPIC_BASE_URL ANTHROPIC_AUTH_TOKEN ZAI_API_KEY CLAUDE_MODEL_OVERRIDE; do
+    if ! grep -q "^${var}=" "$env_file" 2>/dev/null; then
+      echo "unset $var"
+    fi
+  done
+}
+
+# ── CMD: run ─────────────────────────────────────────────────────
+cmd_run() {
+  local target="${1:-}"
+  shift 2>/dev/null || true
+
+  if [[ -z "$target" ]]; then
+    target=$(current_profile)
+    [[ -z "$target" ]] && { err "No active profile. Run: claude-shift switch"; return 1; }
+  fi
+
+  local env_file="$PROFILES_DIR/$target.env"
+  [[ ! -f "$env_file" ]] && { err "Profile '$target' not found."; return 1; }
+
+  # Source profile and launch claude with env vars
+  eval "$(cmd_env "$target")"
+  info "Launching claude with profile: $target"
+  exec claude "$@"
+}
+
 # ── Usage ───────────────────────────────────────────────────────
 usage() {
   echo -e "${BOLD}claude-shift${RESET} v${VERSION} - Profile switcher for Claude Code
@@ -421,6 +468,8 @@ ${BOLD}COMMANDS:${RESET}
   current             Show active profile
   edit [name]         Edit a profile
   remove [name]       Remove a profile
+  env [name]          Print export statements for eval (uses current if no name)
+  run [name] [args]   Launch claude with profile env vars
   version             Show version
 
 ${BOLD}EXAMPLES:${RESET}
@@ -428,6 +477,8 @@ ${BOLD}EXAMPLES:${RESET}
   claude-shift switch work          # Direct switch to 'work' profile
   claude-shift switch               # Interactive profile picker
   claude-shift list                 # Show all profiles
+  eval \"\$(claude-shift env work)\"   # Export profile vars to current shell
+  claude-shift run work             # Launch claude with 'work' profile
 
 ${BOLD}SUPPORTED PROVIDERS:${RESET}
   Anthropic, OpenRouter, Z.AI, DeepSeek, Bedrock,
@@ -450,6 +501,8 @@ main() {
     current|c)   cmd_current "$@" ;;
     edit|e)      cmd_edit "$@" ;;
     remove|rm)   cmd_remove "$@" ;;
+    env)         cmd_env "$@" ;;
+    run|r)       cmd_run "$@" ;;
     version|v|-v|--version) echo "$APP_NAME v$VERSION" ;;
     help|-h|--help) usage ;;
     "")          usage ;;
