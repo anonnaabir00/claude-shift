@@ -30,8 +30,14 @@ label() { echo -e "${CYAN}${BOLD}${1}${RESET}"; }
 PROVIDERS=(
   "Anthropic (direct)|https://api.anthropic.com|claude-sonnet-4-20250514"
   "OpenRouter|https://openrouter.ai/api/v1|anthropic/claude-sonnet-4"
+  "Z.AI|https://api.z.ai/api/anthropic|"
+  "DeepSeek|https://api.deepseek.com/anthropic|deepseek-chat"
   "Amazon Bedrock|https://bedrock-runtime.us-east-1.amazonaws.com|anthropic.claude-sonnet-4-20250514-v1:0"
   "Google Vertex AI||claude-sonnet-4@20250514"
+  "Ollama (local)|http://localhost:11434/v1|llama3.3"
+  "LM Studio (local)|http://localhost:1234/v1|"
+  "NVIDIA NIM|https://integrate.api.nvidia.com/v1|meta/llama-3.3-70b-instruct"
+  "Cloudflare AI Gateway||"
   "Custom (Anthropic-compatible)||"
 )
 
@@ -164,9 +170,19 @@ cmd_add() {
   info "Provider: $pname"
   echo
 
-  # Profile name
+  # Auto-suggest profile name based on provider
+  local slug
+  slug=$(echo "$pname" | tr '[:upper:]' '[:lower:]' | sed 's/ (.*//;s/[^a-z0-9]/-/g;s/--*/-/g;s/-$//')
+  # If slug already exists, append a number
+  local suggested="$slug"
+  if profile_exists "$suggested"; then
+    local n=2
+    while profile_exists "${slug}-${n}"; do ((n++)); done
+    suggested="${slug}-${n}"
+  fi
+
   local profile_name
-  profile_name=$(prompt_value "Profile name (e.g. work, personal, openrouter)")
+  profile_name=$(prompt_value "Profile name" "$suggested")
   profile_name="${profile_name// /-}"
   [[ -z "$profile_name" ]] && { err "Name required."; return 1; }
 
@@ -189,18 +205,23 @@ cmd_add() {
   local model
   model=$(prompt_value "Model override" "$example_model")
 
-  # Auth token (optional, for custom)
+  # Auth token (optional, for custom / Z.AI)
   local auth_token=""
   if [[ "$pname" == "Custom (Anthropic-compatible)" ]]; then
     auth_token=$(prompt_value "Auth token (optional)" "" "true")
   fi
 
-  # Write .env file
+  # Write .env file — Z.AI uses ANTHROPIC_AUTH_TOKEN instead of API_KEY
   cat > "$env_file" <<EOF
-ANTHROPIC_API_KEY=${api_key}
 ANTHROPIC_BASE_URL=${base_url}
 CLAUDE_MODEL_OVERRIDE=${model}
 EOF
+
+  if [[ "$pname" == "Z.AI" ]]; then
+    echo "ANTHROPIC_AUTH_TOKEN=${api_key}" >> "$env_file"
+  else
+    echo "ANTHROPIC_API_KEY=${api_key}" >> "$env_file"
+  fi
 
   [[ -n "$auth_token" ]] && echo "ANTHROPIC_AUTH_TOKEN=${auth_token}" >> "$env_file"
 
@@ -370,8 +391,8 @@ ${BOLD}EXAMPLES:${RESET}
   claude-shift list                 # Show all profiles
 
 ${BOLD}SUPPORTED PROVIDERS:${RESET}
-  Anthropic (direct), OpenRouter,
-  Amazon Bedrock, Google Vertex AI, Custom
+  Anthropic, OpenRouter, Z.AI, DeepSeek, Bedrock,
+  Vertex AI, Ollama, LM Studio, NVIDIA NIM, Cloudflare, Custom
 
 ${BOLD}FILES:${RESET}
   Profiles:  ~/.config/claude-shift/profiles/

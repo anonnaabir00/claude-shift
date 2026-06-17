@@ -49,8 +49,14 @@ claude-shift remove [name]        # Remove a profile
 
 - Anthropic (direct API)
 - OpenRouter
+- Z.AI
+- DeepSeek
 - Amazon Bedrock
 - Google Vertex AI
+- Ollama (local)
+- LM Studio (local)
+- NVIDIA NIM
+- Cloudflare AI Gateway
 - Custom (any Anthropic-compatible proxy)
 
 ## How it works
