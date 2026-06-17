@@ -532,8 +532,15 @@ main() {
     run|r)       cmd_run "$@" ;;
     version|v|-v|--version) echo "$APP_NAME v$VERSION" ;;
     help|-h|--help) usage ;;
-    "")          usage ;;
-    *)           err "Unknown command: $cmd"; echo; usage; exit 1 ;;
+    "")          cmd_switch ;;
+    *)
+      # If arg looks like a profile name, treat as switch
+      if profile_exists "$cmd"; then
+        cmd_switch "$cmd" "$@"
+      else
+        err "Unknown command: $cmd"; echo; usage; exit 1
+      fi
+      ;;
   esac
 }
 
