@@ -1,37 +1,70 @@
 # claude-shift
 
-Interactive profile switcher for Claude Code (Claude CLI).
+Profile switcher for Claude Code. Manage multiple API providers and keys from one CLI.
 
 ## Install
 
-### Homebrew (no tap, direct formula URL)
+### Homebrew
 ```bash
 brew install --formula https://raw.githubusercontent.com/anonnaabir00/claude-shift/main/Formula/claude-shift.rb
 ```
-If you previously tapped the repo, run `brew untap anonnaabir00/claude-shift` before installing from the URL.
 
-### Curl installer
+### Curl
 ```bash
 curl -fsSL https://raw.githubusercontent.com/anonnaabir00/claude-shift/main/install.sh | bash
 ```
 
-Usage
+## Uninstall
+
+### If installed via Homebrew
 ```bash
-claude-shift
+brew uninstall claude-shift
 ```
 
-Profiles live in:
-```
-~/.config/claude-switcher/profiles
-```
-
-Claude settings written to:
-```
-~/.claude/settings.local.json
+### If installed via curl script
+```bash
+rm ~/.local/bin/claude-shift
 ```
 
-## Homebrew formula (reference)
-This repo includes a Homebrew formula at `Formula/claude-shift.rb` designed for direct URL installs to avoid Homebrew looking for a `homebrew-claude-shift` tap.
+### Clean up config (optional)
+```bash
+rm -rf ~/.config/claude-shift
+```
 
-## Claude CLI detection
-On launch, `claude-shift` checks for the `claude` CLI in your `PATH` once per run and prints guidance if it is missing.
+## Usage
+
+```bash
+claude-shift add                  # Interactive provider setup (TUI)
+claude-shift switch work          # Direct switch to 'work' profile
+claude-shift switch               # Interactive profile picker
+claude-shift list                 # Show all profiles
+claude-shift current              # Show active profile
+claude-shift edit [name]          # Edit a profile
+claude-shift remove [name]        # Remove a profile
+```
+
+## Supported Providers
+
+- Anthropic (direct API)
+- OpenRouter
+- OpenAI-compatible endpoints
+- Amazon Bedrock
+- Google Vertex AI
+- Custom (any base URL)
+
+## How it works
+
+Profiles stored as `.env` files in `~/.config/claude-shift/profiles/`. On switch, writes `~/.claude/settings.local.json` with the selected provider's env vars and model override.
+
+Auto-enables caveman ultra mode when the caveman plugin is detected.
+
+## Shortcuts
+
+| Command | Alias |
+|---------|-------|
+| `switch` | `sw`, `s` |
+| `list` | `ls`, `l` |
+| `current` | `c` |
+| `add` | `a` |
+| `edit` | `e` |
+| `remove` | `rm` |

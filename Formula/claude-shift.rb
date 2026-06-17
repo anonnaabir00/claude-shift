@@ -1,8 +1,8 @@
 class ClaudeShift < Formula
-  desc "Interactive profile switcher for Claude Code"
+  desc "Profile switcher for Claude Code - manage multiple API providers"
   homepage "https://github.com/anonnaabir00/claude-shift"
-  url "https://raw.githubusercontent.com/anonnaabir00/claude-shift/main/claude-shift"
-  version "0.1.0"
+  url "https://github.com/anonnaabir00/claude-shift/archive/refs/heads/main.tar.gz"
+  version "0.2.0"
   sha256 :no_check
   license "MIT"
 
@@ -10,4 +10,7 @@ class ClaudeShift < Formula
     bin.install "claude-shift"
   end
 
+  test do
+    assert_match "claude-shift", shell_output("#{bin}/claude-shift version")
+  end
 end
