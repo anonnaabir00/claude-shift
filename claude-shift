@@ -143,6 +143,11 @@ write_settings() {
   fi
 
   # Merge: overlay replaces env/model entirely, rest of existing preserved
+  # Remove model from base if no override set (prevent stale model leaking)
+  if [[ -z "${CLAUDE_MODEL_OVERRIDE:-}" ]]; then
+    existing=$(echo "$existing" | jq 'del(.model)')
+  fi
+
   local merged
   merged=$(jq -n \
     --argjson base "$existing" \
@@ -154,6 +159,7 @@ write_settings() {
   chmod 600 "$CLAUDE_SETTINGS_LOCAL"
   echo "$profile" > "$CURRENT_FILE"
   info "Switched to profile: $profile"
+  warn "Restart Claude Code for changes to take effect."
 }
 
 # ── CMD: add ────────────────────────────────────────────────────
